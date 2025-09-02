@@ -1,0 +1,46 @@
+name: Release
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Tüm commit'leri getirmesi için gerekli, aksi takdirde "push" anındaki commit'le sınırlı kalabilir
+
+      - name: Build Executable
+        run: clang++ -std=c++20 -O3 -march=native -flto -fuse-ld=lld -Wall -Wextra -DNDEBUG -o file_copier.exe src/main.cc src/Logger.cc src/DirectoryCopier.cc src/Utils.cc
+      
+      - name: Upload Executable as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: file-copier-executable
+          path: file_copier.exe
+          
+  create_release:
+    needs: build # "build" işinin bitmesini bekler
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Release oluşturmak için gerekli izin
+    steps:
+      - name: Download Executable from Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: file-copier-executable
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: file_copier.exe
+          tag_name: v1.0.0-${{ github.sha }} # v1.0.0- ile başlayan bir etiket (tag) ve commit SHA'sını içerir
+          name: Release v1.0.0 (${{ github.sha }})
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Release oluşturmak için gereken token
